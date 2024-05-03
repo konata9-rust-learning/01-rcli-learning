@@ -22,7 +22,7 @@ impl TextSign for Blake3 {
     fn sign(&self, reader: &mut dyn Read) -> Result<Vec<u8>> {
         // TODO: improve pref by reading in chunks
         let mut buf = Vec::new();
-        reader.read_to_end(&mut buf);
+        reader.read_to_end(&mut buf)?;
 
         Ok(blake3::keyed_hash(&self.key, &buf).as_bytes().to_vec())
     }
@@ -31,7 +31,7 @@ impl TextSign for Blake3 {
 impl TextVerify for Blake3 {
     fn verify(&self, reader: &mut dyn Read, sig: &[u8]) -> Result<bool> {
         let mut buf = Vec::new();
-        reader.read_to_end(&mut buf);
+        reader.read_to_end(&mut buf)?;
 
         let hash = blake3::hash(&buf);
         let hash = hash.as_bytes();
