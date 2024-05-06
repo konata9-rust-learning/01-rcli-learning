@@ -1,9 +1,11 @@
-use std::{fs, io::Read};
+use std::{fs, io::Read, path::Path};
 
 use crate::{cli::TextSignFormat, get_reader};
 use anyhow::Result;
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
-use ed25519_dalek::{Signature, Signer, SigningKey};
+use ed25519_dalek::{
+    Signature, Signer, SigningKey, Verifier, VerifyingKey,
+};
 trait TextSign {
     // Read is more generic
     /// Sing the data from the reader and return the sig
@@ -14,8 +16,29 @@ trait TextVerify {
     fn verify(&self, reader: &mut dyn Read, sig: &[u8]) -> Result<bool>;
 }
 
+trait KeyLoader {
+    fn load(path: impl AsRef<Path>) -> Result<Self>
+    where
+        // Fixed length data type not str
+        Self: Sized;
+}
+
 struct Blake3 {
     key: [u8; 32],
+}
+
+impl Blake3 {
+    fn new(key: [u8; 32]) -> Self {
+        Self { key }
+    }
+
+    fn try_new(key: &[u8]) -> Result<Self> {
+        let key = &key[..32];
+        let key = key.try_into()?;
+        let signer = Self::new(key);
+
+        Ok(signer)
+    }
 }
 
 impl TextSign for Blake3 {
@@ -39,8 +62,27 @@ impl TextVerify for Blake3 {
     }
 }
 
+impl KeyLoader for Blake3 {
+    fn load(path: impl AsRef<Path>) -> Result<Self> {
+        let key = fs::read(path)?;
+        Self::try_new(&key)
+    }
+}
+
 struct Ed25519Signer {
     key: SigningKey,
+}
+
+impl Ed25519Signer {
+    fn new(key: SigningKey) -> Self {
+        Self { key }
+    }
+
+    fn try_new(key: &[u8]) -> Result<Self> {
+        let key = SigningKey::from_bytes(key.try_into()?);
+        let signer = Ed25519Signer::new(key);
+        Ok(signer)
+    }
 }
 
 impl TextSign for Ed25519Signer {
@@ -53,8 +95,29 @@ impl TextSign for Ed25519Signer {
     }
 }
 
+impl KeyLoader for Ed25519Signer {
+    fn load(path: impl AsRef<Path>) -> Result<Self> {
+        let key = fs::read(path)?;
+        Self::try_new(&key)
+    }
+}
+
 struct Ed25519Verifier {
-    key: SigningKey,
+    key: VerifyingKey,
+}
+
+impl Ed25519Verifier {
+    fn new(key: VerifyingKey) -> Self {
+        Self { key }
+    }
+
+    fn try_new(key: &[u8]) -> Result<Self> {
+        let key = VerifyingKey::from_bytes(key.try_into()?)?;
+        let verifier = Ed25519Verifier::new(key);
+        Ok(verifier)
+    }
+
+
 }
 
 impl TextVerify for Ed25519Verifier {
@@ -69,21 +132,67 @@ impl TextVerify for Ed25519Verifier {
     }
 }
 
+impl  KeyLoader for Ed25519Verifier {
+    fn load(path: impl AsRef<Path>) -> Result<Self> {
+        let key = fs::read(path)?;
+        Self::try_new(&key)
+    }
+}
+
 pub fn process_sign(input: &str, key: &str, format: TextSignFormat) -> Result<()> {
     let mut reader = get_reader(input)?;
     let signed = match format {
         TextSignFormat::Blake3 => {
-            let key = fs::read(key)?;
-            let key = &key[..32];
-            let key = key.try_into()?;
-            let signer = Blake3 { key };
+            let signer = Blake3::load(key)?;
             signer.sign(&mut reader)?
         }
-        TextSignFormat::Ed25519 => todo!(),
+        TextSignFormat::Ed25519 => {
+            let signer = Ed25519Signer::load(key)?;
+            signer.sign(&mut reader)?
+        }
     };
 
     let signed = URL_SAFE_NO_PAD.encode(&signed);
 
     println!("{}", signed);
     Ok(())
+}
+
+pub fn process_verify(input: &str, sig: &str, key: &str, format: TextSignFormat) -> Result<()> {
+    let mut reader = get_reader(input)?;
+
+    let sig = URL_SAFE_NO_PAD.decode(sig)?;
+    let verified = match format {
+        TextSignFormat::Blake3 => {
+            let verifier = Blake3::load(key)?;
+            verifier.verify(&mut reader, &sig)?
+        },
+        TextSignFormat::Ed25519 => {
+            let verifier = Ed25519Verifier::load(key)?;
+            verifier.verify(&mut reader, &sig)?
+        }
+    };
+
+    println!("{}", verified);
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use anyhow::Ok;
+
+    use super::*;  
+
+    #[test]
+    fn test_blake3_sign_verify() -> Result<()>{
+        let key = "fixtures/blake3.txt";
+        let blake3 = Blake3::load(key)?;
+
+        let data = b"hello world";
+        let sig = blake3.sign(&mut &data[..])?;
+
+        assert!(blake3.verify(&mut &data[..], &sig)?);
+
+        Ok(())
+    }
 }
