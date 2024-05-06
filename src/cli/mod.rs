@@ -11,7 +11,7 @@ use genpass_opts::GenPassOpts;
 pub use base64_opts::Base64Format;
 pub use base64_opts::Base64Subcommand;
 pub use csv_opts::OutputFormat;
-pub use text_opts::{TextSubcommand, TextSignFormat};
+pub use text_opts::{TextSignFormat, TextSubcommand};
 
 use clap::Parser;
 
@@ -40,9 +40,9 @@ pub enum Subcommand {
 fn verify_file(filename: &str) -> Result<String, String> {
     // if input is "-" or file exists
     if filename == "-" || Path::new(filename).exists() {
-        return Ok(filename.into());
+        Ok(filename.into())
     } else {
-        return Err("File not found".into());
+        Err("File not found".into())
     }
 }
 

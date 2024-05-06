@@ -3,9 +3,7 @@ use std::{fs, io::Read, path::Path};
 use crate::{cli::TextSignFormat, get_reader};
 use anyhow::Result;
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
-use ed25519_dalek::{
-    Signature, Signer, SigningKey, Verifier, VerifyingKey,
-};
+use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
 trait TextSign {
     // Read is more generic
     /// Sing the data from the reader and return the sig
@@ -56,8 +54,9 @@ impl TextVerify for Blake3 {
         let mut buf = Vec::new();
         reader.read_to_end(&mut buf)?;
 
-        let hash = blake3::hash(&buf);
+        let hash = blake3::keyed_hash(&self.key, &buf);
         let hash = hash.as_bytes();
+
         Ok(hash == sig)
     }
 }
@@ -116,8 +115,6 @@ impl Ed25519Verifier {
         let verifier = Ed25519Verifier::new(key);
         Ok(verifier)
     }
-
-
 }
 
 impl TextVerify for Ed25519Verifier {
@@ -132,7 +129,7 @@ impl TextVerify for Ed25519Verifier {
     }
 }
 
-impl  KeyLoader for Ed25519Verifier {
+impl KeyLoader for Ed25519Verifier {
     fn load(path: impl AsRef<Path>) -> Result<Self> {
         let key = fs::read(path)?;
         Self::try_new(&key)
@@ -152,7 +149,7 @@ pub fn process_sign(input: &str, key: &str, format: TextSignFormat) -> Result<()
         }
     };
 
-    let signed = URL_SAFE_NO_PAD.encode(&signed);
+    let signed = URL_SAFE_NO_PAD.encode(signed);
 
     println!("{}", signed);
     Ok(())
@@ -166,7 +163,7 @@ pub fn process_verify(input: &str, sig: &str, key: &str, format: TextSignFormat)
         TextSignFormat::Blake3 => {
             let verifier = Blake3::load(key)?;
             verifier.verify(&mut reader, &sig)?
-        },
+        }
         TextSignFormat::Ed25519 => {
             let verifier = Ed25519Verifier::load(key)?;
             verifier.verify(&mut reader, &sig)?
@@ -181,10 +178,10 @@ pub fn process_verify(input: &str, sig: &str, key: &str, format: TextSignFormat)
 mod tests {
     use anyhow::Ok;
 
-    use super::*;  
+    use super::*;
 
     #[test]
-    fn test_blake3_sign_verify() -> Result<()>{
+    fn test_blake3_sign_verify() -> Result<()> {
         let key = "fixtures/blake3.txt";
         let blake3 = Blake3::load(key)?;
 

@@ -7,9 +7,9 @@ use super::verify_file;
 
 #[derive(Debug, Parser)]
 pub enum Base64Subcommand {
-    #[command(name="encode", about = "Encode a string to base64")]
+    #[command(name = "encode", about = "Encode a string to base64")]
     Encode(Base64EncodeOpts),
-    #[command(name="decode", about = "Decode a base64 string")]
+    #[command(name = "decode", about = "Decode a base64 string")]
     Decode(Base64DecodeOpts),
 }
 
@@ -35,7 +35,7 @@ pub struct Base64DecodeOpts {
 #[derive(Debug, Clone, Copy)]
 pub enum Base64Format {
     Standard,
-    UrlSafe
+    UrlSafe,
 }
 
 fn parse_base64_format(format: &str) -> Result<Base64Format, anyhow::Error> {

@@ -34,8 +34,8 @@ pub fn process_decode(input: &str, format: Base64Format) -> anyhow::Result<()> {
     let buf: &str = buf.trim();
 
     let decoded = match format {
-        Base64Format::Standard => STANDARD.decode(&buf)?,
-        Base64Format::UrlSafe => URL_SAFE_NO_PAD.decode(&buf)?,
+        Base64Format::Standard => STANDARD.decode(buf)?,
+        Base64Format::UrlSafe => URL_SAFE_NO_PAD.decode(buf)?,
     };
     // TODO: decoded dada might not be string. BUT for this example, assume to string.
     let decoded = String::from_utf8(decoded)?;
