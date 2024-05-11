@@ -11,6 +11,8 @@ pub enum TextSubcommand {
     Sign(TextSignOpts),
     #[command(name = "verify", about = "Verify a text")]
     Verify(TextVerifyOpts),
+    #[command(name = "key", about = "Generate a key")]
+    Generate(TextKeyGenerateOpts), 
 }
 
 #[derive(Debug, Parser)]
@@ -39,6 +41,12 @@ pub struct TextVerifyOpts {
 
     #[arg(short, long)]
     pub sig: String,
+}
+
+#[derive(Debug, Parser)]
+pub struct TextKeyGenerateOpts {
+    #[arg(long, value_parser = verify_file, default_value = "blake3")]
+    pub format: TextSignFormat,
 }
 
 #[derive(Debug, Clone, Copy)]

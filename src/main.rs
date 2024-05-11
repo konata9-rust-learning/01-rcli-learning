@@ -36,6 +36,9 @@ fn main() -> anyhow::Result<()> {
             TextSubcommand::Verify(opts) => {
                 process_verify(&opts.input, &opts.sig, &opts.key, opts.format)?
             }
+            TextSubcommand::Generate(opts) => {
+                println!("{:?}", opts)
+            }
         },
     }
 
